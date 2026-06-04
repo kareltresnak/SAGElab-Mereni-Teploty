@@ -32,14 +32,14 @@ function vytvorTabulky() {
   )`);
 }
 
-app.get('/api/data', (req, res) => {
+app.get('/data', (req, res) => {
   db.all('SELECT * FROM mereni ORDER BY timestamp DESC LIMIT 100', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-app.post('/api/command/blink', (req, res) => {
+app.post('/command/blink', (req, res) => {
   const { device_id } = req.body;
 
   if (device_id === undefined) {
@@ -55,7 +55,7 @@ app.post('/api/command/blink', (req, res) => {
   });
 });
 
-app.post('/api/data', (req, res) => {
+app.post('/data', (req, res) => {
   const { device_id, device_name, temperature } = req.body;
 
   if (temperature === undefined || device_id === undefined) {
@@ -88,7 +88,7 @@ app.post('/api/data', (req, res) => {
   });
 });
 
-app.get('/api/data/filter', (req, res) => {
+app.get('/data/filter', (req, res) => {
     const { device_id, device_name, temp_min, temp_max, date_from, date_to, limit } = req.query;
 
     let query = `SELECT id, device_id, device_name, temperature, timestamp FROM mereni WHERE 1=1`;

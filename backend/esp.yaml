@@ -18,7 +18,7 @@ esphome:
 
       - sim800l.http_post:
 
-          url: "<IP_ADDRESS>/api/data"
+          url: "<IP_ADDRESS>/data"
 
           body: !lambda |-
 
