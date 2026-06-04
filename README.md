@@ -36,13 +36,12 @@ přidat 4.7 kΩ pull-up rezistor mezi 3.3V a `GPIO33`.
 * Pokud využíváte notifikační LED, zapojte její anodu na `GPIO13` a
 katodu přes 220-330Ω rezistor do `GND`.
 ### Krok 2: Instalace Backend serveru
-Pro běh serveru je vyžadováno prostředí Node.js. Server byl vyvíjen v
-TypeScriptu, ale pro produkci je k dispozici již zkompilovaný soubor
-`index.js`.
-1. Vytvořte složku pro projekt a vložte do ní serverové soubory (včetně
-`index.js` a `package.json`).
-
-2. Otevřete terminál ve složce projektu a nainstalujte závislosti:
+Pro běh serveru je vyžadováno prostředí Node.js.
+1. Vytvořte složku pro projekt a vložte do ní serverové soubory. Poté se přesuňte do části se serverem.
+```bash
+cd backend
+```
+2. Otevřete terminál ve složce backend a nainstalujte závislosti:
 ```bash
 npm install express sqlite3 cors
 ```
@@ -55,11 +54,11 @@ node index.js
 na portu `8132`.*
 ### Krok 3: Konfigurace Frontendu (Dashboardu)
 Frontend nevyžaduje instalaci žádného frameworku.
-1. Otevřete soubor `index.html` v textovém editoru.
+1. Otevřete soubor `frontend/index.html` v textovém editoru.
 2. Najděte proměnnou definující IP adresu serveru (např. `IP_SERVERU`).
 3. Změňte hodnotu z `localhost` na reálnou veřejnou IP adresu vašeho serveru
 a ujistěte se, že port odpovídá (např. `8132`).
-4. Nahrajte soubor `index.html` na váš webový hosting nebo jej otevřete
+4. Nahrajte soubor `frontend/index.html` na váš webový hosting nebo jej otevřete
 lokálně ve webovém prohlížeči.
 ### Krok 4: Konfigurace a Flashování ESP32 (ESPHome)
 Firmware koncových uzlů je postaven na ESPHome.
