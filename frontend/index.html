@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senzory teploty - SAGElab</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" type="image/png" href="assets/icon.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/cs.js"></script>
+    <style>
+        :root {
+            --bg-base: #050505;
+            --bg-surface: #111111;
+            --bg-surface-elevated: #1a1a1a;
+            --accent-primary: #00e5ff;
+            --accent-danger: #ff2a5f;
+            --text-main: #e0e0e0;
+            --text-muted: #888888;
+            --border-color: #222222;
+        }
+
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            padding: 40px 20px; 
+            background-color: var(--bg-base); 
+            color: var(--text-main); 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .container { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 24px; }
+
+        .hlavicka-stranky {
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 16px;
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; font-weight: 600; color: #ffffff; } 
+
+        .card {
+            background: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        button { 
+            padding: 10px 16px; font-size: 14px; font-weight: 500; cursor: pointer; 
+            background: var(--bg-surface-elevated); color: var(--text-main); 
+            border: 1px solid var(--border-color); border-radius: 6px; transition: all 0.2s ease;
+        }
+        button:hover { background: var(--border-color); color: #ffffff; }
+        button.primary { background: rgba(0, 229, 255, 0.1); color: var(--accent-primary); border-color: rgba(0, 229, 255, 0.3); }
+        button.primary:hover { background: var(--accent-primary); color: #000; }
+        button.danger { background: rgba(255, 42, 95, 0.1); color: var(--accent-danger); border-color: rgba(255, 42, 95, 0.3); }
+        button.danger:hover { background: var(--accent-danger); color: #fff; }
+
+        input, select {
+            padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border-color);
+            background-color: var(--bg-surface-elevated); color: var(--text-main);
+            font-family: inherit; outline: none; transition: border-color 0.2s ease; width: 100%;
+            box-sizing: border-box;
+            color-scheme:  dark !important; /* Vynutí tmavý kalendář v prohlížeči */
+        }
+        input:focus, select:focus { border-color: var(--accent-primary); }
+        
+        /* Zviditelnění klikací ikony kalendáře v prohlížečích založených na Chromiu */
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+            cursor: pointer;
+        }
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+            filter: invert(1);
+        }
+
+        .filter-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px; align-items: end;
+        }
+        .filter-group { display: flex; flex-direction: column; gap: 6px; }
+        .filter-group label { color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .flex-row { display: flex; gap: 8px; }
+
+        .chart-filters { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-btn { border-radius: 20px; padding: 6px 14px; font-size: 13px; border-left: 4px solid transparent; opacity: 0.5; }
+        .filter-btn.active { opacity: 1; background: var(--bg-surface-elevated); }
+
+        .table-wrapper { overflow-x: auto; max-height: 500px; overflow-y: auto; }
+        table { border-collapse: collapse; width: 100%; text-align: left; font-size: 14px; }
+        th, td { border-bottom: 1px solid var(--border-color); padding: 14px 16px; }
+        th { color: var(--text-muted); font-weight: 500; text-transform: uppercase; font-size: 12px; position: sticky; top: 0; background: var(--bg-surface); z-index: 10;}
+        tr:hover td { background-color: rgba(255, 255, 255, 0.02); }
+        /* --- RED PEN ZÁSAH: Kybernetický Scrollbar --- */
+        
+        /* Cílení přímo na kontejner tabulky */
+        .table-wrapper::-webkit-scrollbar {
+            width: 8px; /* Úzký, nenápadný profil */
+            height: 8px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background: var(--bg-surface); 
+            border-radius: 4px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: var(--border-color); 
+            border-radius: 4px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted); /* Vizuální feedback při interakci */
+        }
+
+        /* Globální aplikace pro hlavní okno prohlížeče (prevence budoucích chyb) */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-base);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+        /* --- ABSOLUTNÍ ASIMILACE FLATPICKRU --- */
+        .flatpickr-calendar {
+            background: var(--bg-surface-elevated) !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8) !important;
+        }
+        
+        /* Hlavička jako celek */
+        .flatpickr-months, 
+        .flatpickr-months .flatpickr-month, 
+        .flatpickr-current-month {
+            background: transparent !important;
+            color: var(--text-main) !important;
+        }
+
+        /* --- DROPDOWN MĚSÍCE A JEHO POLOŽKY --- */
+        .flatpickr-current-month .flatpickr-monthDropdown-months {
+            background: var(--bg-surface-elevated) !important;
+            color: var(--text-main) !important;
+            font-weight: 600;
+            border: 1px solid transparent;
+            outline: none;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding: 2px 6px;
+        }
+
+        .flatpickr-current-month .flatpickr-monthDropdown-months:hover {
+            background: var(--bg-surface) !important;
+            border-color: var(--border-color);
+        }
+
+        /* Vynucení tmavého pozadí pro samotné vyskakovací položky (options) */
+        .flatpickr-current-month .flatpickr-monthDropdown-months option {
+            background-color: var(--bg-surface-elevated) !important;
+            color: var(--text-main) !important;
+            padding: 4px;
+        }
+
+        /* --- VSTUP PRO ROK --- */
+        input.numInput.cur-year {
+            color: var(--text-main) !important;
+            font-weight: 600;
+            background: transparent !important;
+        }
+
+        /* Šipky nahoru/dolů u zadávání roku */
+        .flatpickr-current-month .numInputWrapper span {
+            border: none !important;
+        }
+        .flatpickr-current-month .numInputWrapper span:hover {
+            background: var(--bg-surface) !important;
+        }
+        .flatpickr-current-month .numInputWrapper span svg {
+            fill: var(--text-main) !important;
+        }
+
+        /* Hlavní navigační šipky kalendáře */
+        .flatpickr-months .flatpickr-prev-month,
+        .flatpickr-months .flatpickr-next-month {
+            color: var(--text-main) !important;
+            fill: var(--text-main) !important;
+        }
+        .flatpickr-months .flatpickr-prev-month:hover svg,
+        .flatpickr-months .flatpickr-next-month:hover svg {
+            fill: var(--accent-primary) !important;
+        }
+        
+        /* Lišta se dny v týdnu */
+        .flatpickr-weekdays,
+        span.flatpickr-weekday {
+            background: transparent !important;
+            color: var(--text-muted) !important;
+            font-weight: 500;
+        }
+        
+        /* Jednotlivé dny */
+        .flatpickr-day {
+            color: var(--text-main) !important;
+            background: transparent;
+            border-color: transparent;
+        }
+        .flatpickr-day.flatpickr-disabled, 
+        .flatpickr-day.flatpickr-disabled:hover {
+            color: #333 !important;
+            background: transparent !important;
+        }
+        .flatpickr-day:hover, 
+        .flatpickr-day:focus {
+            background: var(--bg-surface) !important;
+            border-color: var(--border-color) !important;
+            color: #fff !important;
+        }
+        
+        /* Aktivní stav vybraného dne */
+        .flatpickr-day.selected,
+        .flatpickr-day.selected:hover {
+            background: var(--accent-primary) !important;
+            border-color: var(--accent-primary) !important;
+            color: #000 !important;
+            font-weight: 600;
+        }
+        
+        /* Dny patřící do předchozího/následujícího měsíce (zeslabení textu) */
+        .flatpickr-day.prevMonthDay, 
+        .flatpickr-day.nextMonthDay {
+            color: #444 !important;
+        }
+        .flatpickr-day.prevMonthDay:hover, 
+        .flatpickr-day.nextMonthDay:hover {
+            background: var(--bg-surface) !important;
+            color: #fff !important;
+        }
+        
+        /* Spodní lišta času */
+        .flatpickr-time {
+            border-top: 1px solid var(--border-color) !important;
+            background: transparent !important;
+        }
+        .flatpickr-time input, 
+        .flatpickr-time .flatpickr-am-pm,
+        .flatpickr-time .flatpickr-time-separator {
+            color: var(--text-main) !important;
+            font-weight: 600;
+        }
+        .flatpickr-time input:hover, 
+        .flatpickr-time input:focus {
+            background: var(--bg-surface) !important;
+        }
+        
+        /* Šipky nahoru/dolů pro ladění času */
+        .flatpickr-time .numInputWrapper span:hover {
+            background: var(--bg-surface) !important;
+        }
+        .flatpickr-time .numInputWrapper span svg {
+            fill: var(--text-main) !important;
+        }
+        /* --- RED PEN ZÁSAH: Nedokumentovaná Subrutina (Easter Egg) --- */
+        .logo-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        #hlavni-logo {
+            position: relative;
+            z-index: 2; /* Opona */
+            transition: transform 0.2s ease;
+        }
+
+        .logo-container:active #hlavni-logo {
+            transform: scale(0.95); /* Haptická odezva při kliknutí */
+        }
+
+        #elmo-payload {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0.2); /* Výchozí stav: schovaný a malý */
+            z-index: 1; /* Za oponou */
+            opacity: 0;
+            width: 70px;
+            pointer-events: none; /* Zabraňuje interakci s myší */
+            /* Fyzikální model pružiny: overshoot nahoru a zpět */
+            transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); 
+        }
+
+        /* Stav aktivace: Elmo vyskočí nahoru a mírně doprava */
+        .logo-container.anomalous #elmo-payload {
+            transform: translate(20%, -110%) scale(1) rotate(15deg);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header class="hlavicka-stranky">
+            <div class="logo-container" id="brand-trigger">
+            <img src="assets/icon.png" alt="Logo" id="hlavni-logo" style="width: 50px; height: auto;">
+            <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMHpmeTdwaGQzZnZtczg0N2UybjcyZGk1cnFnbTJpZHRua2FlcDcyNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/yr7n0u3qzO9nG/giphy.gif" alt="Elmo" id="elmo-payload">
+        </div>
+            <h1>Senzory & Měření</h1>
+            <button class="primary" id="tlacitko-obnovit">🔄 Načíst data</button>
+        </header>
+
+        <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <span style="color: var(--text-muted); font-size: 14px;">Ovládání zařízení:</span>
+                <select id="zarizeni-select" style="width: auto;">
+                    <option value="" disabled selected>Načítám...</option>
+                </select>
+                <button class="danger" id="tlacitko-blikat">🚨 Rozblikat LED</button>
+            </div>
+            <button id="tlacitko-reset-filtru" style="border-color: var(--text-muted);">✖ Vymazat filtry</button>
+        </div>
+
+        <div class="card filter-grid" id="panel-filtru">
+            <div class="filter-group">
+                <label>Vyhledat zařízení</label>
+                <div class="flex-row">
+                    <input type="text" id="filtr-id" placeholder="ID (např. 12)">
+                    <select id="filtr-nazev">
+                        <option value="">Všechna zařízení...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Teplota (°C)</label>
+                <div class="flex-row">
+                    <input type="number" id="filtr-temp-min" placeholder="Od">
+                    <input type="number" id="filtr-temp-max" placeholder="Do">
+                </div>
+            </div>
+            <div class="filter-group" style="grid-column: span 2;">
+                <label>Časové rozmezí</label>
+                <div class="flex-row">
+                    <input type="text" id="filtr-cas-od" placeholder="Od (DD.MM.RRRR HH:MM)" style="font-family: Arial, Helvetica, sans-serif;">
+                    <input type="text" id="filtr-cas-do" placeholder="Do (DD.MM.RRRR HH:MM)" style="font-family: Arial, Helvetica, sans-serif;">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Počet záznamů</label>
+                <input type="number" id="filtr-limit" placeholder="Zobrazit posledních N..." value="50" min="1">
+            </div>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <button class="primary" id="tlacitko-aplikovat" style="width: 100%;">Aplikovat filtry</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="chart-filters" id="graf-filtry"></div>
+            <div style="position: relative; height: 350px; width: 100%;">
+                <canvas id="teplotniGraf"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-wrapper">
+                <table id="tabulka-mereni">
+                    <thead>
+                        <tr>
+                            <th>ID zařízení</th>
+                            <th>Název zařízení</th>
+                            <th>Teplota (°C)</th>
+                            <th>Čas měření</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let mujGraf = null;
+        let unikatniZarizeniGlobal = []; 
+        
+        const barvyGrafu = ['#00e5ff', '#ff2a5f', '#b000ff', '#00ff88', '#ffaa00', '#0088ff'];
+        Chart.defaults.color = '#888888';
+        Chart.defaults.borderColor = '#222222';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        async function stahniDataZeServeru() {
+            const url = new URL('http://<IP_ADDRESS>:<PORT>/api/data/filter');
+            
+            const pId = document.getElementById('filtr-id').value;
+            const pNazev = document.getElementById('filtr-nazev').value;
+            const pMin = document.getElementById('filtr-temp-min').value;
+            const pMax = document.getElementById('filtr-temp-max').value;
+            
+            // RED PEN: Sanitizace časového formátu pro SQLite (T -> mezera, zahození vteřin)
+            const pOd = document.getElementById('filtr-cas-od').value ? document.getElementById('filtr-cas-od').value + ':00' : '';
+            const pDo = document.getElementById('filtr-cas-do').value ? document.getElementById('filtr-cas-do').value + ':00' : '';
+            
+            const pLimit = document.getElementById('filtr-limit').value;
+
+            if (pId) url.searchParams.append('device_id', pId);
+            if (pNazev) url.searchParams.append('device_name', pNazev);
+            if (pMin) url.searchParams.append('temp_min', pMin);
+            if (pMax) url.searchParams.append('temp_max', pMax);
+            
+            // Posíláme pouze pokud je délka stringu validní (uživatel něco vybral)
+            if (document.getElementById('filtr-cas-od').value) url.searchParams.append('date_from', pOd);
+            if (document.getElementById('filtr-cas-do').value) url.searchParams.append('date_to', pDo);
+            if (pLimit) url.searchParams.append('limit', pLimit);
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Transportní chyba: ${response.status}`);
+
+                const data = await response.json();
+                
+                aktualizujRozhrani(data);
+                
+                // Poprvé nebo při resetu naplníme dropdown unikátními zařízeními z paměti
+                if (pNazev === "") {
+                    aktualizujFiltrZarizeni(data);
+                }
+
+            } catch (error) {
+                console.error('Fatal I/O:', error);
+                document.querySelector('#tabulka-mereni tbody').innerHTML = '<tr><td colspan="4" style="color: var(--accent-danger);">Komunikační vrstva zhroutila spojení. Zkontrolujte logy serveru.</td></tr>';
+            }
+        }
+
+        // --- NOVÁ FUNKCE PRO VYKRESLENÍ SEZNAMU ---
+        function aktualizujFiltrZarizeni(data) {
+            const selectFiltr = document.getElementById('filtr-nazev');
+            const aktualniVyber = selectFiltr.value; // Zapamatování stavu
+            
+            // Extrakce setu unikátních jmen (Asymptotická složitost O(N))
+            const unikatniJmena = [...new Set(data.map(m => m.device_name))];
+            
+            selectFiltr.innerHTML = '<option value="">Všechna zařízení...</option>';
+            
+            unikatniJmena.forEach(jmeno => {
+                const opt = document.createElement('option');
+                opt.value = jmeno;
+                opt.text = jmeno;
+                if (jmeno === aktualniVyber) opt.selected = true;
+                selectFiltr.appendChild(opt);
+            });
+        }
+
+        function aktualizujRozhrani(data) {
+            // 1. Získání unikátních zařízení pro příkazy a legendy
+            const zmapovano = new Set();
+            const unikatniObjekty = [];
+            data.forEach(m => {
+                if (!zmapovano.has(m.device_id)) {
+                    zmapovano.add(m.device_id);
+                    unikatniObjekty.push({ id: m.device_id, name: m.device_name });
+                }
+            });
+            
+            nastavDropdown(unikatniObjekty);
+            unikatniZarizeniGlobal = unikatniObjekty.map(o => o.name);
+            vytvorFiltryGrafu(unikatniZarizeniGlobal);
+
+            // 2. Tabulka a Graf
+            vykresliTabulku(data);
+            vykresliGrafCore(data);
+        }
+
+        function vykresliTabulku(data) {
+            const tbody = document.querySelector('#tabulka-mereni tbody');
+            tbody.innerHTML = ''; 
+
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">Nebyly nalezeny žádné záznamy.</td></tr>';
+                return;
+            }
+
+            data.forEach(mereni => {
+                const cas = new Date(mereni.timestamp).toLocaleString('cs-CZ');
+                
+                // Nalezení indexu zařízení pro exaktní spárování barvy s grafem
+                const indexZarizeni = unikatniZarizeniGlobal.indexOf(mereni.device_name);
+                const barvaZarizeni = indexZarizeni !== -1 ? barvyGrafu[indexZarizeni % barvyGrafu.length] : '#ffffff';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><code>${mereni.device_id}</code></td>
+                        <td style="color: ${barvaZarizeni}; font-weight: 600;">${mereni.device_name}</td>
+                        <td style="font-weight: 600; color: #ffffff;">${mereni.temperature}</td>
+                        <td style="color: #888; font-variant-numeric: tabular-nums;">${cas}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function vykresliGrafCore(data) {
+            // Backend vrací data seřazená od nejnovějších, pro graf je otočíme
+            const grafData = [...data].reverse();
+            const casy = grafData.map(m => new Date(m.timestamp).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }));
+            
+            const sadyDat = unikatniZarizeniGlobal.map((nazev, index) => {
+                const barva = barvyGrafu[index % barvyGrafu.length];
+                const tlacitko = document.getElementById(`btn-graf-${index}`);
+                const jeSkryte = tlacitko ? !tlacitko.classList.contains('active') : false;
+
+                return {
+                    label: nazev,
+                    data: grafData.map(m => m.device_name === nazev ? m.temperature : null),
+                    borderColor: barva,
+                    backgroundColor: barva, 
+                    borderWidth: 2,
+                    pointBackgroundColor: '#050505',
+                    pointBorderColor: barva,
+                    pointRadius: 3,
+                    tension: 0.2,
+                    spanGaps: true,
+                    hidden: jeSkryte
+                };
+            });
+
+            if (mujGraf !== null) mujGraf.destroy();
+            const ctx = document.getElementById('teplotniGraf').getContext('2d');
+            mujGraf = new Chart(ctx, {
+                type: 'line',
+                data: { labels: casy, datasets: sadyDat },
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                    scales: { y: { grid: { color: '#222' } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } } } 
+                }
+            });
+        }
+
+        function vytvorFiltryGrafu(unikatniZarizeni) {
+            const kontejner = document.getElementById('graf-filtry');
+            // Zamezení přepsání tlačítek, pokud se nezměnil počet zařízení (zachová stav zapnuto/vypnuto)
+            if(kontejner.children.length === unikatniZarizeni.length) return; 
+
+            kontejner.innerHTML = '';
+            unikatniZarizeni.forEach((nazev, index) => {
+                const btn = document.createElement('button');
+                btn.id = `btn-graf-${index}`;
+                btn.className = 'filter-btn active';
+                btn.innerText = nazev;
+                btn.style.borderLeftColor = barvyGrafu[index % barvyGrafu.length];
+                
+                btn.onclick = () => {
+                    btn.classList.toggle('active');
+                    const datasetMeta = mujGraf.getDatasetMeta(index);
+                    datasetMeta.hidden = !datasetMeta.hidden;
+                    mujGraf.update();
+                };
+                kontejner.appendChild(btn);
+            });
+        }
+
+        function nastavDropdown(zarizeniArray) {
+            const select = document.getElementById('zarizeni-select');
+            // Zachování aktuálního výběru
+            const aktualniVyber = select.value;
+            
+            if (zarizeniArray.length === 0) return select.innerHTML = '<option disabled selected>Žádná data</option>';
+            
+            select.innerHTML = '<option value="" disabled selected>Vyberte zařízení</option>';
+            zarizeniArray.forEach(z => {
+                const isSelected = (aktualniVyber == z.id) ? 'selected' : '';
+                select.innerHTML += `<option value="${z.id}" ${isSelected}>ID: ${z.id} - ${z.name}</option>`;
+            });
+        }
+
+        function resetFiltru() {
+            document.querySelectorAll('#panel-filtru input').forEach(input => input.value = '');
+            document.getElementById('filtr-limit').value = '50';
+            stahniDataZeServeru();
+        }
+
+        // Události
+        document.addEventListener('DOMContentLoaded', stahniDataZeServeru);
+        document.getElementById('tlacitko-obnovit').addEventListener('click', stahniDataZeServeru);
+        document.getElementById('tlacitko-reset-filtru').addEventListener('click', resetFiltru);
+        
+        // Změna odesílání dotazu: Netížíme API při každém stisku klávesy. 
+        // Dotaz na DB se odpálí buď kliknutím na "Aplikovat" nebo stiskem Enter.
+        document.getElementById('tlacitko-aplikovat').addEventListener('click', stahniDataZeServeru);
+        document.querySelectorAll('#panel-filtru input').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') stahniDataZeServeru();
+            });
+        });
+        
+        // POST příkaz
+        document.getElementById('tlacitko-blikat').addEventListener('click', async () => {
+            const zId = document.getElementById('zarizeni-select').value;
+            if (!zId) return alert('Není vybráno žádné zařízení.');
+            try {
+                const r = await fetch('http://<IP_ADDRESS>:<PORT>/api/command/blink', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: parseInt(zId) }) 
+                });
+                if (!r.ok) throw new Error('API zamítlo příkaz');
+                alert(`Příkaz k blikání odeslán na zařízení [${zId}].`);
+            } catch (e) { alert('Chyba při komunikaci se zařízením.'); }
+        });
+
+        // Inicializace Flatpickr s českou lokalizací a 24h formátem
+        flatpickr("#filtr-cas-od", {
+            enableTime: true,
+            time_24hr: true,
+            dateFormat: "Y-m-d H:i", // SQLite kompatibilní formát rovnou na vstupu
+            locale: "cs",
+            altInput: true,
+            altFormat: "d.m.Y H:i" // Formát, který vidí uživatel (evropský standard)
+        });
+
+        flatpickr("#filtr-cas-do", {
+            enableTime: true,
+            time_24hr: true,
+            dateFormat: "Y-m-d H:i",
+            locale: "cs",
+            altInput: true,
+            altFormat: "d.m.Y H:i"
+        });
+        // Inicializace nedokumentované subrutiny (Elmo)
+        document.getElementById('brand-trigger').addEventListener('click', function() {
+            // Zamezení double-click zacyklení
+            if (this.classList.contains('anomalous')) return;
+            
+            // Odjištění payloadu
+            this.classList.add('anomalous');
+            
+            // Automatický reset po 2.5 sekundách
+            setTimeout(() => {
+                this.classList.remove('anomalous');
+            }, 2500);
+        });
+    </script>
+</body>
+</html>
